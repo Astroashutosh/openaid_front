@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OpenAid International</title>
+
+    <style>
+      /* Hide Google Translate Top Banner without removing translation frames */
+      .goog-te-banner-frame, .goog-te-banner-frame.skiptranslate {
+        display: none !important;
+        visibility: hidden !important;
+        height: 0 !important;
+        opacity: 0 !important;
+        position: absolute !important;
+        top: -9999px !important;
+        pointer-events: none !important;
+      }
+      body {
+        top: 0px !important;
+        position: static !important;
+      }
+      #goog-gt-tt, .goog-te-balloon-frame {
+        display: none !important;
+      }
+      .goog-text-highlight {
+        background-color: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+      }
+      .skiptranslate {
+        display: none !important;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Invisible Google Translate Container -->
+    <div id="google_translate_element" style="position: absolute !important; top: -9999px !important; left: -9999px !important; width: 1px !important; height: 1px !important; overflow: hidden !important; opacity: 0 !important; pointer-events: none !important;"></div>
+
+    <div id="root"></div>
+
+    <script type="text/javascript">
+      function googleTranslateElementInit() {
+        if (window.google && window.google.translate) {
+          new window.google.translate.TranslateElement({
+            pageLanguage: 'en',
+            includedLanguages: 'en,fr,es,pt,ar,vi',
+            autoDisplay: false
+          }, 'google_translate_element');
+        }
+      }
+    </script>
+    <script type="text/javascript" id="openaid-gt-script" src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
+
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
