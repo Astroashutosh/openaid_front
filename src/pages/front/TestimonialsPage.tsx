@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import Header from "../../components/front/Header";
 import Footer from "../../components/front/Footer";
+import adminCMSService, { type CMSItem } from "../../services/adminCMSService";
 
 
 
@@ -63,54 +64,6 @@ type WithdrawalProof = {
   reference?: string;
 
 };
-
-
-
-const testimonialVideos: TestimonialVideo[] = [
-  {
-    id: "story-1",
-    title: "Community conversation",
-    member: "Stock footage preview",
-    description: "Free stock video from Pexels. Replace with an approved member testimonial before publishing.",
-    videoUrl: "https://videos.pexels.com/video-files/7605721/7605721-hd_1920_1080_30fps.mp4",
-    thumbnailUrl: "",
-    duration: "00:09",
-  },
-  {
-    id: "story-2",
-    title: "Community discussion",
-    member: "Stock footage preview",
-    description: "Free stock video from Pexels. Replace with an approved member testimonial before publishing.",
-    videoUrl: "https://videos.pexels.com/video-files/6517434/6517434-hd_1920_1080_30fps.mp4",
-    thumbnailUrl: "",
-    duration: "00:09",
-  },
-  {
-    id: "story-3",
-    title: "Team conversation",
-    member: "Stock footage preview",
-    description: "Free stock video from Pexels. Replace with an approved member testimonial before publishing.",
-    videoUrl: "https://videos.pexels.com/video-files/8141405/8141405-uhd_3840_2160_25fps.mp4",
-    thumbnailUrl: "",
-    duration: "00:10",
-  },
-
-  
-];
-
-
-
-const withdrawalProofs: WithdrawalProof[] = [
-
-  { id: "proof-1", title: "Withdrawal record", date: "Pending verification", amount: "", imageUrl: "", reference: "" },
-
-  { id: "proof-2", title: "Withdrawal record", date: "Pending verification", amount: "", imageUrl: "", reference: "" },
-
-  { id: "proof-3", title: "Withdrawal record", date: "Pending verification", amount: "", imageUrl: "", reference: "" },
-
-  { id: "proof-4", title: "Withdrawal record", date: "Pending verification", amount: "", imageUrl: "", reference: "" },
-
-];
 
 
 
@@ -214,21 +167,116 @@ function useCarousel(itemCount: number) {
 
 
 
-const TestimonialsPage: React.FC = () => {
 
+function getYouTubeEmbedUrl(url?: string): string | null {
+  if (!url) return null;
+
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname.replace(/^www\./, "");
+    let videoId = "";
+
+    if (host === "youtu.be") {
+      videoId = parsed.pathname.split("/").filter(Boolean)[0] || "";
+    } else if (host === "youtube.com" || host === "m.youtube.com" || host === "youtube-nocookie.com") {
+      if (parsed.pathname === "/watch") {
+        videoId = parsed.searchParams.get("v") || "";
+      } else {
+        const match = parsed.pathname.match(/^\/(?:embed|shorts)\/([^/?]+)/);
+        videoId = match?.[1] || "";
+      }
+    }
+
+    return /^[a-zA-Z0-9_-]{11}$/.test(videoId)
+      ? `https://www.youtube.com/embed/${videoId}`
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+const TestimonialsPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>("all");
+  const [testimonialVideos, setTestimonialVideos] = useState<TestimonialVideo[]>([]);
+  const [withdrawalProofs, setWithdrawalProofs] = useState<WithdrawalProof[]>([]);
+  const [cmsLoading, setCmsLoading] = useState(true);
+  const [cmsError, setCmsError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadCMSContent = async () => {
+      try {
+        setCmsLoading(true);
+        setCmsError("");
+
+        const items: CMSItem[] = await adminCMSService.getPublic();
+        if (cancelled) return;
+
+        const videos: TestimonialVideo[] = items
+          .filter(
+            (item) =>
+              item.type === "testimonial" &&
+            //   item.status === "published" &&
+              Boolean(item.video_url)
+          )
+          .map((item) => ({
+            id: String(item.id),
+            title: item.title,
+            member: item.member || "Community member",
+            description: item.description || "",
+            videoUrl: item.video_url || undefined,
+            thumbnailUrl: item.thumbnail_url || undefined,
+          }));
+
+        const proofs: WithdrawalProof[] = items
+          .filter(
+            (item) =>
+              item.type === "withdrawal_proof" &&
+            //   item.status === "approved" &&
+              Boolean(item.image_url)
+          )
+          .map((item) => ({
+            id: String(item.id),
+            title: item.title,
+            date: item.created_at
+              ? new Date(item.created_at).toLocaleDateString()
+              : "Verified record",
+            amount:
+              item.amount !== null && item.amount !== undefined
+                ? String(item.amount)
+                : "",
+            imageUrl: item.image_url || undefined,
+            reference: item.reference || undefined,
+          }));
+
+        setTestimonialVideos(videos);
+        setWithdrawalProofs(proofs);
+      } catch (error) {
+        if (!cancelled) {
+          setCmsError(
+            error instanceof Error
+              ? error.message
+              : "Unable to load testimonials and withdrawal proofs."
+          );
+        }
+      } finally {
+        if (!cancelled) setCmsLoading(false);
+      }
+    };
+
+    void loadCMSContent();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const videoCarousel = useCarousel(testimonialVideos.length);
-
   const proofCarousel = useCarousel(withdrawalProofs.length);
-
   const showVideos = activeTab !== "proofs";
-
   const showProofs = activeTab !== "videos";
-
-  const publishedVideos = testimonialVideos.filter((item) => item.videoUrl).length;
-
-  const publishedProofs = withdrawalProofs.filter((item) => item.imageUrl).length;
+  const publishedVideos = testimonialVideos.length;
+  const publishedProofs = withdrawalProofs.length;
 
 
 
@@ -326,6 +374,27 @@ const TestimonialsPage: React.FC = () => {
 
 
 
+        {cmsLoading && (
+          <div className="my-6 rounded-xl border border-white/10 bg-white/[0.03] p-6 text-center text-sm text-white/60">
+            Loading testimonials and withdrawal proofs...
+          </div>
+        )}
+
+        {!cmsLoading && cmsError && (
+          <div className="my-6 rounded-xl border border-red-400/20 bg-red-500/10 p-4 text-center text-sm text-red-200">
+            <p>{cmsError}</p>
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="mt-2 font-bold underline underline-offset-4"
+            >
+              Retry
+            </button>
+          </div>
+        )}
+
+        {!cmsLoading && !cmsError && (
+          <>
         {showVideos && (
 
           <section className="mt-4 sm:mt-5">
@@ -360,6 +429,12 @@ const TestimonialsPage: React.FC = () => {
 
 
 
+            {testimonialVideos.length === 0 ? (
+              <div className="rounded-xl border border-white/10 bg-white/[0.03] p-8 text-center text-sm text-white/55">
+                No published testimonials available yet.
+              </div>
+            ) : (
+              <>
             <div ref={videoCarousel.trackRef} onMouseEnter={() => videoCarousel.setPaused(true)} onMouseLeave={() => videoCarousel.setPaused(false)} onFocusCapture={() => videoCarousel.setPaused(true)} onBlurCapture={() => videoCarousel.setPaused(false)} className="flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-smooth pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
 
               {testimonialVideos.map((item) => (
@@ -369,91 +444,52 @@ const TestimonialsPage: React.FC = () => {
                   <div className="relative aspect-[2.75/1] overflow-hidden bg-gradient-to-br from-[#174A32] via-[#0B3423] to-[#041A10]">
 
                     {item.videoUrl ? (
-                      <div className="group relative h-full w-full overflow-hidden">
-                        <video
-                          playsInline
-                          preload="metadata"
-                          poster={item.thumbnailUrl || undefined}
-                          className="h-full w-full object-cover"
-                          onTimeUpdate={(event) => {
-                            const video = event.currentTarget;
-                            const timeLabel = video.parentElement?.querySelector("[data-time-label]");
-                            if (timeLabel) {
-                              const remaining = Math.max(0, Math.ceil(video.duration - video.currentTime));
-                              const minutes = Math.floor(remaining / 60);
-                              const seconds = remaining % 60;
-                              timeLabel.textContent = `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
-                            }
-                          }}
-                          onPlay={(event) => {
-                            const playButton = event.currentTarget.parentElement?.querySelector("[data-play-button]");
-                            playButton?.classList.add("hidden");
-                          }}
-                          onPause={(event) => {
-                            const video = event.currentTarget;
-                            const playButton = video.parentElement?.querySelector("[data-play-button]");
-                            if (!video.ended) playButton?.classList.remove("hidden");
-                          }}
-                          onEnded={(event) => {
-                            const playButton = event.currentTarget.parentElement?.querySelector("[data-play-button]");
-                            playButton?.classList.remove("hidden");
-                          }}
-                        >
-                          <source src={item.videoUrl} type="video/mp4" />
-                          Your browser does not support HTML video.
-                        </video>
+                      <div className="relative h-full w-full overflow-hidden">
+                        {getYouTubeEmbedUrl(item.videoUrl) ? (
+                          <iframe
+                            src={getYouTubeEmbedUrl(item.videoUrl)!}
+                            title={item.title}
+                            className="absolute inset-0 h-full w-full border-0"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                            allowFullScreen
+                            loading="lazy"
+                            referrerPolicy="strict-origin-when-cross-origin"
+                          />
+                        ) : (
+                          <video
+                            controls
+                            playsInline
+                            preload="metadata"
+                            poster={item.thumbnailUrl || undefined}
+                            className="h-full w-full object-cover"
+                          >
+                            <source src={item.videoUrl} />
+                            Your browser does not support HTML video.
+                          </video>
+                        )}
 
                         <span className="absolute left-2 top-2 z-10 inline-flex items-center rounded-full bg-[#062d20]/95 px-2 py-1 text-[7px] font-bold uppercase tracking-wide text-white/90">
                           <Video className="mr-1 h-2.5 w-2.5" /> Video testimonial
                         </span>
-
-                        <button
-                          type="button"
-                          data-play-button
-                          aria-label={`Play ${item.title}`}
-                          onClick={(event) => {
-                            const video = event.currentTarget.parentElement?.querySelector("video");
-                            if (video) {
-                              if (video.paused) {
-                                void video.play();
-                              } else {
-                                video.pause();
-                              }
-                            }
-                          }}
-                          className="absolute inset-0 z-10 flex items-center justify-center bg-black/10 text-[#F2C14E] transition hover:bg-black/20"
-                        >
-                          <span className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-[#F2C14E] bg-black/35 transition hover:scale-110">
-                            <span className="ml-0.5 h-0 w-0 border-y-[7px] border-y-transparent border-l-[11px] border-l-[#F2C14E]" />
-                          </span>
-                        </button>
-
-                        <span data-time-label className="pointer-events-none absolute bottom-2 right-2 z-10 rounded bg-black/70 px-1.5 py-0.5 text-[8px] font-semibold text-white/90">
-                          {item.duration}
-                        </span>
                       </div>
                     ) : item.thumbnailUrl ? (
-
                       <div className="relative h-full w-full">
-
-                        <img src={item.thumbnailUrl} alt={item.title} loading="lazy" className="h-full w-full object-cover opacity-70" />
-
-                        <div className="absolute inset-0 flex items-center justify-center bg-black/20"><CirclePlay className="h-9 w-9 text-[#F2C14E]" /></div>
-
-                      </div>
-
-                    ) : (
-                      <div className="absolute inset-0 overflow-hidden bg-[#405c46]">
-                        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_8%_68%,rgba(176,193,139,.72),transparent_22%),radial-gradient(ellipse_at_82%_34%,rgba(171,186,145,.62),transparent_25%),linear-gradient(100deg,rgba(14,46,31,.25),rgba(4,28,20,.12))]" />
-                        <div className="absolute left-[3%] top-[35%] h-[48%] w-[18%] rounded-[45%] bg-[#8ca27a]/55 blur-xl" />
-                        <div className="absolute right-[8%] top-[18%] h-[60%] w-[12%] rounded-full bg-[#a3b18a]/40 blur-xl" />
-                        <div className="absolute left-1/2 top-[4%] h-[43%] w-[14%] -translate-x-1/2 rounded-[46%_46%_40%_40%] bg-[#061a14]/95" />
-                        <div className="absolute left-1/2 bottom-0 h-[49%] w-[47%] -translate-x-1/2 rounded-t-[48%] bg-[#061a14]/95" />
-                        <span className="absolute left-2 top-2 z-10 inline-flex items-center rounded-full bg-[#063323]/95 px-2 py-1 text-[7px] font-bold uppercase tracking-wide text-white/90"><Video className="mr-1 h-2.5 w-2.5" /> Video testimonial</span>
-                        <div className="absolute inset-0 z-10 flex items-center justify-center">
-                          <div className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-[#F2C14E] bg-[#071c14]/55 text-[#F2C14E] shadow-[0_0_0_1px_rgba(0,0,0,.12)] transition hover:scale-110"><CirclePlay className="h-5 w-5 fill-[#F2C14E] text-[#F2C14E]" /></div>
+                        <img
+                          src={item.thumbnailUrl}
+                          alt={item.title}
+                          loading="lazy"
+                          className="h-full w-full object-cover opacity-70"
+                        />
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                          <CirclePlay className="h-9 w-9 text-[#F2C14E]" />
                         </div>
-                        <span className="absolute bottom-2 right-2 z-10 rounded bg-black/70 px-1.5 py-0.5 text-[8px] font-semibold text-white/90">{item.duration}</span>
+                      </div>
+                    ) : (
+                      <div className="absolute inset-0 flex items-center justify-center bg-[#0B3423]">
+                        <div className="text-center text-white/60">
+                          <Video className="mx-auto h-8 w-8" />
+                          <p className="mt-2 text-xs">Video not available</p>
+                        </div>
                       </div>
                     )}
 
@@ -465,7 +501,11 @@ const TestimonialsPage: React.FC = () => {
 
                     <p className="mt-1 flex items-center gap-1 text-[9px] text-white/50"><BadgeCheck className="h-3 w-3 text-[#D4A72C]" /> {item.member}</p>
 
-                    <p className="mt-1.5 flex items-center gap-1 text-[9px] text-[#F2C14E]/90"><Clock3 className="h-3 w-3" /> Awaiting approved content</p>
+                    {item.description && (
+                      <p className="mt-1.5 line-clamp-2 text-[9px] leading-4 text-white/55">
+                        {item.description}
+                      </p>
+                    )}
 
                   </div>
 
@@ -480,6 +520,8 @@ const TestimonialsPage: React.FC = () => {
               {testimonialVideos.map((item, index) => <button key={item.id} aria-label={`Go to member story ${index + 1}`} onClick={() => videoCarousel.goTo(index)} className={`h-1 rounded-full transition-all ${videoCarousel.activeIndex === index ? "w-6 bg-[#F2C14E]" : "w-1.5 bg-white/25"}`} />)}
 
             </div>
+              </>
+            )}
 
           </section>
 
@@ -521,6 +563,12 @@ const TestimonialsPage: React.FC = () => {
 
 
 
+            {withdrawalProofs.length === 0 ? (
+              <div className="rounded-xl border border-white/10 bg-white/[0.03] p-8 text-center text-sm text-white/55">
+                No approved withdrawal proofs available yet.
+              </div>
+            ) : (
+              <>
             <div ref={proofCarousel.trackRef} onMouseEnter={() => proofCarousel.setPaused(true)} onMouseLeave={() => proofCarousel.setPaused(false)} onFocusCapture={() => proofCarousel.setPaused(true)} onBlurCapture={() => proofCarousel.setPaused(false)} className="flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-smooth pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
 
               {withdrawalProofs.map((proof) => (
@@ -584,12 +632,17 @@ const TestimonialsPage: React.FC = () => {
               {withdrawalProofs.map((proof, index) => <button key={proof.id} aria-label={`Go to withdrawal proof ${index + 1}`} onClick={() => proofCarousel.goTo(index)} className={`h-1 rounded-full transition-all ${proofCarousel.activeIndex === index ? "w-6 bg-[#F2C14E]" : "w-1.5 bg-white/25"}`} />)}
 
             </div>
+              </>
+            )}
 
           </section>
 
         )}
 
 
+
+          </>
+        )}
 
         <section className="mt-4 rounded-lg border border-white/10 bg-[#073522]/70 px-3 py-2.5 sm:mt-5 sm:px-4">
 

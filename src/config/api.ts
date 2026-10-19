@@ -74,6 +74,17 @@ export const API_ENDPOINTS = {
     WITHDRAWALS: buildApiUrl('/admin/withdrawals'),
     REPORTS: buildApiUrl('/admin/reports'),
     SETTINGS: buildApiUrl('/admin/settings'),
+
+  // New CMS endpoint
+  CMS: buildApiUrl('/admin/cms'),
+// Disclaimer CMS endpoints
+// DISCLAIMER: {
+//   PUBLIC: buildApiUrl('/disclaimer'),
+//   ADMIN: buildApiUrl('/admin/disclaimer'),
+// },
+// Admin Disclaimer CMS
+DISCLAIMER: buildApiUrl('/admin/disclaimer'),
+
   },
 
   // Common Platform Branding / General Settings

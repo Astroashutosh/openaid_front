@@ -26,6 +26,9 @@ import { SettingsPage } from './pages/admin/SettingsPage';
 import { ChangePasswordPage } from './pages/admin/ChangePasswordPage';
 import { AdminProfilePage } from './pages/admin/AdminProfilePage';
 
+
+
+
 // User (Member Portal) Layout & Pages
 import { UserLayout } from './layouts/UserLayout';
 import { UserDashboard } from './pages/user/UserDashboard';
@@ -83,6 +86,8 @@ import { AdminForgotPasswordPage } from './pages/admin/auth/AdminForgotPasswordP
 import { AdminResetPasswordPage } from './pages/admin/auth/AdminResetPasswordPage';
 import { useLocation } from 'react-router-dom';
 import React, { useLayoutEffect } from 'react';
+import TestimonialsCMS from './pages/admin/TestimonialsCMS';
+import DisclaimerCMS from './pages/admin/DisclaimerCMS';
 
 const ScrollToTop: React.FC = () => {
   const { pathname } = useLocation();
@@ -233,6 +238,14 @@ function App() {
               <Route path="home" element={<AdminDashboard />} />
               <Route path="dashboard" element={<AdminDashboard />} />
 
+
+             <Route  path="/admin/cms" element={<TestimonialsCMS />}/>
+  <Route
+    path="/admin/disclaimer"
+    element={<DisclaimerCMS />}
+  />
+
+
               {/* 2. Packages */}
               <Route path="packages" element={<Navigate to="/admin/packages/donations" replace />} />
               <Route path="packages/donations" element={<PackagesPage />} />
@@ -343,6 +356,8 @@ function App() {
               <Route path="level-commission" element={<SettingsPage />} />
               <Route path="payment-setting" element={<SettingsPage />} />
             </Route>
+          
+          
           </Route>
 
           {/* =========================================

@@ -273,6 +273,21 @@ export const AdminSidebar: React.FC<SidebarProps> = ({
       icon: FileText,
       path: '/admin/business-material',
     },
+
+
+
+{
+  id: 'cms',
+  title: 'CMS',
+  icon: FileText,
+  children: [
+    { title: 'Description', path: '/admin/disclaimer' },
+    { title: 'Testimonial', path: '/admin/cms' },
+  ],
+},
+
+
+
     {
       id: 'settings',
       title: 'Settings',
